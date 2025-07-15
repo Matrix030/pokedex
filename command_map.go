@@ -14,7 +14,7 @@ const baseURL = "https://pokeapi.co/api/v2/location-area/"
 
 var cache = pokecache.NewCache(5 * time.Minute)
 
-func commandMap(cfg *config) error {
+func commandMap(cfg *config, args []string) error {
 	url := baseURL
 	if cfg.nextURL != nil {
 		url = *cfg.nextURL
@@ -61,7 +61,7 @@ func commandMap(cfg *config) error {
 	return nil
 }
 
-func commandMapB(cfg *config) error {
+func commandMapB(cfg *config, args []string) error {
 	if cfg.previousURL == nil {
 		fmt.Println("You are on the first page")
 		return nil
