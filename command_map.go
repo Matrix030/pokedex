@@ -1,109 +1,40 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
-
-	"github.com/Matrix030/pokedex/internal/pokecache"
 )
 
-const baseURL = "https://pokeapi.co/api/v2/location-area/"
-
-var cache = pokecache.NewCache(5 * time.Minute)
-
-func commandMap(cfg *config, args []string) error {
-	url := baseURL
-	if cfg.nextURL != nil {
-		url = *cfg.nextURL
-	}
-
-	if cachedData, found := cache.Get(url); found {
-		fmt.Println("Using cached data!")
-
-		var data locationAreaResponse
-		if err := json.Unmarshal(cachedData, &data); err != nil {
-			return err
-		}
-		for _, area := range data.Results {
-			fmt.Println(area.Name)
-		}
-		cfg.nextURL = data.Next
-		cfg.previousURL = data.Previous
-	}
-	resp, err := http.Get(url)
+func commandMapf(cfg *config) error {
+	locationsResp, err := cfg.pokeapiClient.ListLocations(cfg.nextLocationsURL)
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	cfg.nextLocationsURL = locationsResp.Next
+	cfg.prevLocationsURL = locationsResp.Previous
 
-	body, err2 := io.ReadAll(resp.Body)
-	if err2 != nil {
-		return err2
+	for _, loc := range locationsResp.Results {
+		fmt.Println(loc.Name)
 	}
-
-	cache.Add(url, body)
-
-	var data locationAreaResponse
-
-	if err3 := json.Unmarshal(body, &data); err != nil {
-		return err3
-	}
-	for _, area := range data.Results {
-		fmt.Println(area.Name)
-	}
-	cfg.nextURL = data.Next
-	cfg.previousURL = data.Previous
-
 	return nil
 }
 
-func commandMapB(cfg *config, args []string) error {
-	if cfg.previousURL == nil {
-		fmt.Println("You are on the first page")
-		return nil
+func commandMapb(cfg *config) error {
+	if cfg.prevLocationsURL == nil {
+		return errors.New("you're on the first page")
 	}
 
-	if cachedData, found := cache.Get(*cfg.previousURL); found {
-		var data locationAreaResponse
-		if err := json.Unmarshal(cachedData, &data); err != nil {
-			return err
-		}
-
-		for _, area := range data.Results {
-			fmt.Println(area.Name)
-		}
-		cfg.nextURL = data.Next
-		cfg.previousURL = data.Previous
-		return nil
-	}
-
-	resp, err := http.Get(*cfg.previousURL)
+	locationResp, err := cfg.pokeapiClient.ListLocations(cfg.prevLocationsURL)
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	cfg.nextLocationsURL = locationResp.Next
+	cfg.prevLocationsURL = locationResp.Previous
 
-	body, err2 := io.ReadAll(resp.Body)
-
-	if err2 != nil {
-		return err2
+	for _, loc := range locationResp.Results {
+		fmt.Println(loc.Name)
 	}
-	var data locationAreaResponse
-	if err := json.Unmarshal(body, &data); err != nil {
-		return err
-	}
-
-	for _, area := range data.Results {
-		fmt.Println(area.Name)
-	}
-
-	cfg.nextURL = data.Next
-	cfg.previousURL = data.Previous
-
 	return nil
 }
